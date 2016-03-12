@@ -2,7 +2,7 @@
 Softnas custom metrics plugin for mackerel.io agent.
 
 ### Synopsis
-`mackerel-plugin-softnas [-user=<user>] [-password=<password>]`
+`mackerel-plugin-softnas [-cmd=<path of softnas-cmd>] [-user=<user of softnas-cmd>] [-password=<password of softnas-cmd>]`
 
 ### Example of mackerel-agent.conf
 `[plugin.metrics.softnas]`  

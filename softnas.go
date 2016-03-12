@@ -36,11 +36,18 @@ type SoftnasPlugin struct {
 	User      string
 	Password  string
 	SessionID string
-	Tempfile  string
 }
 
-// OverviewMetrics overview metrics for overview
-type OverviewMetrics struct {
+// LoginResult softnas-cmd login result for SessionID
+type LoginResult struct {
+	Success   bool `json:"success"`
+	SessionID int  `json:"session_id"`
+	Result    struct {
+	} `json:"result"`
+}
+
+// OverviewResult softnas-cmd overview result for metrics
+type OverviewResult struct {
 	Success   bool `json:"success"`
 	SessionID int  `json:"session_id"`
 	Result    struct {
@@ -60,9 +67,8 @@ type OverviewMetrics struct {
 func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 	stat, err := s.getSoftnasOverview()
 	if err != nil {
-		return stat, err
+		return nil, err
 	}
-	fmt.Println(stat)
 	return stat, err
 }
 
@@ -107,23 +113,23 @@ func byteSizeConvert(storagename string) (float64, error) {
 }
 
 //softnas-cmdのsession_idを取得
-func getSoftnasSessionID(cmd string, user *string, pw *string) (int, error) {
-	var overview OverviewMetrics
-	login, err := exec.Command(cmd, "login", *user, *pw).Output()
+func getSoftnasSessionID(cmd string, user string, pw string) (int, error) {
+	var login LoginResult
+	result, err := exec.Command(cmd, "login", user, pw).Output()
 	if err != nil {
 		return 0, err
 	}
-	json.Unmarshal([]byte(login), &overview)
-	return overview.SessionID, nil
+	json.Unmarshal([]byte(result), &login)
+	return login.SessionID, nil
 }
 
 //
 func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
-	var overview OverviewMetrics
+	var overview OverviewResult
 	stat := make(map[string]interface{})
 	result, err := exec.Command(s.Command, "--session_id", s.SessionID, "overview").Output()
 	if err != nil {
-		return stat, err
+		return nil, err
 	}
 	json.Unmarshal([]byte(result), &overview)
 	storagename0 := overview.Result.Records[0].StorageName
@@ -138,24 +144,22 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 	stat["storagename_free"] = storagenameFree
 	stat["storagedata_used"] = storagedataUsed
 	stat["storagedata_free"] = storagedataFree
-	fmt.Println(stat)
 	return stat, err
 }
 
 func main() {
 	// (name, default, help)
-	var optCommand = "/usr/local/bin/softnas-cmd"
-	var optUser = flag.String("user", "softnas", "Softnas User")
-	var optPassword = flag.String("password", "Pass4W0rd", "Softnas Password")
-	var optTempfile = flag.String("tempfile", "", "Temp file name")
+	var optCommand = flag.String("cmd", "/usr/local/bin/softnas-cmd", "Path of softnas-cmd")
+	var optUser = flag.String("user", "softnas", "User of softnas-cmd")
+	var optPassword = flag.String("password", "Pass4W0rd", "Password of softnas-cmd")
 	flag.Parse()
 
 	var softnas SoftnasPlugin
-	softnas.Command = optCommand
+	softnas.Command = *optCommand
 	softnas.User = *optUser
 	softnas.Password = *optPassword
 
-	id, err := getSoftnasSessionID(optCommand, optUser, optPassword)
+	id, err := getSoftnasSessionID(*optCommand, *optUser, *optPassword)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -163,11 +167,6 @@ func main() {
 	softnas.SessionID = strconv.Itoa(id)
 
 	helper := mp.NewMackerelPlugin(softnas)
-	if *optTempfile != "" {
-		helper.Tempfile = *optTempfile
-	} else {
-		helper.Tempfile = fmt.Sprintf("/tmp/mackerel-plugin-aws-elasticache-%s-%d", *optUser, id)
-	}
 
 	helper.Run()
 
