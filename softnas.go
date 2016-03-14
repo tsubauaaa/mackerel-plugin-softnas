@@ -124,7 +124,7 @@ func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
 	return graphdefSoftnas
 }
 
-//StorageName&MemoryNameをByte変換する
+//Byte to convert the StorageName & MemoryName
 func byteSizeConvert(name string) (float64, error) {
 	if strings.Contains(name, ",") {
 		name = strings.Replace(name, ",", "", -1)
@@ -162,7 +162,7 @@ func byteSizeConvert(name string) (float64, error) {
 	}
 }
 
-//softnas-cmdのsession_idを取得
+//Get the session_id of softnas-cmd
 func getSoftnasSessionID(cmd string, user string, pw string) (int, error) {
 	var l LoginResult
 	result, err := exec.Command(cmd, "login", user, pw).Output()
@@ -223,7 +223,6 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 }
 
 func main() {
-	// (name, default, help)
 	var optCommand = flag.String("cmd", "/usr/local/bin/softnas-cmd", "Path of softnas-cmd")
 	var optUser = flag.String("user", "softnas", "User of softnas-cmd")
 	var optPassword = flag.String("password", "Pass4W0rd", "Password of softnas-cmd")
