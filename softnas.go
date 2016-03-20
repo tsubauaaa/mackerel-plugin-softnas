@@ -11,7 +11,7 @@ import (
 	mp "github.com/mackerelio/go-mackerel-plugin-helper"
 )
 
-var graphdefSoftnas = map[string](mp.Graphs){
+var graphdef = map[string](mp.Graphs){
 	"softnas.storagename": mp.Graphs{
 		Label: "SoftNas StorageName",
 		Unit:  "bytes",
@@ -121,7 +121,7 @@ func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 
 // GraphDefinition interface for mackerel plugin
 func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
-	return graphdefSoftnas
+	return graphdef
 }
 
 //Byte to convert the StorageName & MemoryName
