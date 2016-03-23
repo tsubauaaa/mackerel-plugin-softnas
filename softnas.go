@@ -116,7 +116,7 @@ func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stat, err
+	return stat, nil
 }
 
 // GraphDefinition interface for mackerel plugin
@@ -131,34 +131,19 @@ func byteSizeConvert(name string) (float64, error) {
 	}
 	if strings.HasSuffix(name, "K") {
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "K"), 64)
-		if err != nil {
-			return 0, err
-		}
-		return nameConv * 1024, nil
+		return nameConv * 1024, err
 	} else if strings.HasSuffix(name, "M") {
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "M"), 64)
-		if err != nil {
-			return 0, err
-		}
-		return nameConv * 1024 * 1024, nil
+		return nameConv * 1024 * 1024, err
 	} else if strings.HasSuffix(name, "G") {
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "G"), 64)
-		if err != nil {
-			return 0, err
-		}
-		return nameConv * 1024 * 1024 * 1024, nil
+		return nameConv * 1024 * 1024 * 1024, err
 	} else if strings.HasSuffix(name, "T") {
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "T"), 64)
-		if err != nil {
-			return 0, err
-		}
-		return nameConv * 1024 * 1024 * 1024 * 1024, nil
+		return nameConv * 1024 * 1024 * 1024 * 1024, err
 	} else {
 		nameConv, err := strconv.ParseFloat(name, 64)
-		if err != nil {
-			return 0, err
-		}
-		return nameConv, nil
+		return nameConv, err
 	}
 }
 
@@ -166,11 +151,8 @@ func byteSizeConvert(name string) (float64, error) {
 func getSoftnasSessionID(cmd string, user string, pw string) (int, error) {
 	var l LoginResult
 	result, err := exec.Command(cmd, "login", user, pw).Output()
-	if err != nil {
-		return 0, err
-	}
 	json.Unmarshal([]byte(result), &l)
-	return l.SessionID, nil
+	return l.SessionID, err
 }
 
 func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
@@ -219,7 +201,7 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 	stat["memoryname_free"] = mnFree
 	stat["memorydata_used"] = mdUsed
 	stat["memorydata_free"] = mdFree
-	return stat, err
+	return stat, nil
 }
 
 func main() {
