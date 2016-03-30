@@ -1,0 +1,16 @@
+#!/bin/bash
+
+SERVER=http://localhost:8080
+
+##引数チェックを入れよう
+
+if [ $1 = "login" ]; then
+  curl ${SERVER}/sessionid
+  exit 0
+elif [ $1 = "--session_id" ]; then
+  curl ${SERVER}/overview
+  exit 0
+else
+  echo "$1: Invalid command"
+  exit 1
+fi
