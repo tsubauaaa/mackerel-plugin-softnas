@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-/*
-var testOverviewHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprint(w, `{"success" : true, "session_id" : 12345, "result" : {"success":true,"msg":"","records":[{"storage_name":"44.8G Free\n(100.0%)","storage_data":99.99897820609},{"storage_name":"480.0K Used\n(0.0%)","storage_data":0.0010217939104395},{"memory_name":"666.7K\nCache Used\n(0.1%)","memory_data":0.064876091113447},{"memory_name":"1,002.9M\nCache Free\n(99.9%)","memory_data":99.935123908887}],"total":4}}`)
-	return
-})
-*/
 func TestGetSessionID(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(
@@ -39,18 +32,19 @@ func TestFetchMetrics(t *testing.T) {
 			}))
 	defer ts.Close()
 	var softnas SoftnasPlugin
+	softnas.Command = "./softnas-cmd_test"
 	softnas.BaseURL = ts.URL
 	softnas.SessionID = "12345"
 	stat, err := softnas.FetchMetrics()
 	assert.Nil(t, err)
-	assert.EqualValues(t, 12345, stat["storagename_used"])
-	assert.EqualValues(t, 12345, stat["storagename_free"])
-	assert.EqualValues(t, 12345, stat["storagedata_used"])
-	assert.EqualValues(t, 12345, stat["storagedata_free"])
-	assert.EqualValues(t, 12345, stat["memoryname_used"])
-	assert.EqualValues(t, 12345, stat["memoryname_free"])
-	assert.EqualValues(t, 12345, stat["memorydata_used"])
-	assert.EqualValues(t, 12345, stat["memorydata_free"])
+	assert.EqualValues(t, 491520, stat["storagename_used"])
+	assert.EqualValues(t, 4.81036337152e+10, stat["storagename_free"])
+	assert.EqualValues(t, 0.0010217939104395, stat["storagedata_used"])
+	assert.EqualValues(t, 99.99897820609, stat["storagedata_free"])
+	assert.EqualValues(t, 682700.8, stat["memoryname_used"])
+	assert.EqualValues(t, 1.0516168704e+09, stat["memoryname_free"])
+	assert.EqualValues(t, 0.064876091113447, stat["memorydata_used"])
+	assert.EqualValues(t, 99.935123908887, stat["memorydata_free"])
 }
 
 func TestByteConvert(t *testing.T) {
