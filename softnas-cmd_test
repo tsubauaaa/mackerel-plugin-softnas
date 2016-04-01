@@ -1,14 +1,14 @@
 #!/bin/bash
 
-SERVER=http://localhost:8080
+BASE_URL=${!#}
 
 ##引数チェックを入れよう
 
 if [ $1 = "login" ]; then
-  curl ${SERVER}/sessionid
+  curl ${BASE_URL}
   exit 0
-elif [ $1 = "--session_id" ]; then
-  curl ${SERVER}/overview
+elif [ $1 = "overview" ]; then
+  curl ${BASE_URL}
   exit 0
 else
   echo "$1: Invalid command"

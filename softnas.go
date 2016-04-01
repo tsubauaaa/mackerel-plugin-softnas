@@ -49,6 +49,7 @@ var graphdef = map[string](mp.Graphs){
 // SoftnasPlugin mackerel plugin for softnas
 type SoftnasPlugin struct {
 	Command   string
+	BaseURL   string
 	User      string
 	Password  string
 	SessionID string
@@ -148,9 +149,9 @@ func byteSizeConvert(name string) (float64, error) {
 }
 
 //Get the session_id of softnas-cmd
-func getSoftnasSessionID(cmd string, user string, pw string) (int, error) {
+func getSoftnasSessionID(cmd string, url string, user string, pw string) (int, error) {
 	var l LoginResult
-	result, err := exec.Command(cmd, "login", user, pw).Output()
+	result, err := exec.Command(cmd, "login", user, pw, "--base_url", url).Output()
 	json.Unmarshal([]byte(result), &l)
 	return l.SessionID, err
 }
@@ -158,7 +159,7 @@ func getSoftnasSessionID(cmd string, user string, pw string) (int, error) {
 func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 	var o OverviewResult
 	stat := make(map[string]interface{})
-	result, err := exec.Command(s.Command, "--session_id", s.SessionID, "overview").Output()
+	result, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -206,16 +207,18 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 
 func main() {
 	var optCommand = flag.String("cmd", "/usr/local/bin/softnas-cmd", "Path of softnas-cmd")
+	var optBaseURL = flag.String("url", "https://localhost/softnas", "URL of softnas")
 	var optUser = flag.String("user", "softnas", "User of softnas-cmd")
 	var optPassword = flag.String("password", "Pass4W0rd", "Password of softnas-cmd")
 	flag.Parse()
 
 	var softnas SoftnasPlugin
 	softnas.Command = *optCommand
+	softnas.BaseURL = *optBaseURL
 	softnas.User = *optUser
 	softnas.Password = *optPassword
 
-	id, err := getSoftnasSessionID(*optCommand, *optUser, *optPassword)
+	id, err := getSoftnasSessionID(*optCommand, *optBaseURL, *optUser, *optPassword)
 	if err != nil {
 		fmt.Println(err)
 	}
