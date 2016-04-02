@@ -1,16 +1,12 @@
 #!/bin/bash
 
-BASE_URL=${!#}
+if [ $# -ne 5 ]; then
+  exit 1
+fi
 
-##引数チェックを入れよう
-
-if [ $1 = "login" ]; then
-  curl ${BASE_URL}
-  exit 0
-elif [ $1 = "overview" ]; then
-  curl ${BASE_URL}
+if [ "$1" = "login" -o "$1" = "overview" ]; then
+  curl ${!#}
   exit 0
 else
-  echo "$1: Invalid command"
   exit 1
 fi
