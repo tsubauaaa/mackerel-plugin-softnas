@@ -207,7 +207,7 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 
 func main() {
 	var optCommand = flag.String("cmd", "/usr/local/bin/softnas-cmd", "Path of softnas-cmd")
-	var optBaseURL = flag.String("url", "https://localhost/softnas", "URL of softnas")
+	var optBaseURL = flag.String("url", "https://localhost/softnas", "URL of softnas-cmd")
 	var optUser = flag.String("user", "softnas", "User of softnas-cmd")
 	var optPassword = flag.String("password", "Pass4W0rd", "Password of softnas-cmd")
 	flag.Parse()
