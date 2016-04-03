@@ -4,8 +4,10 @@ if [ $# -ne 5 ]; then
   exit 1
 fi
 
+BASE_URL=${!#}
+
 if [ "$1" = "login" -o "$1" = "overview" ]; then
-  curl ${!#}
+  curl $BASE_URL
   exit 0
 else
   exit 1
