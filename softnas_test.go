@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetSessionID(t *testing.T) {
+func TestSoftnasSessionID(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +61,7 @@ func TestFetchMetrics(t *testing.T) {
 func TestByteConvert(t *testing.T) {
 	stub := []string{"1,000K", "1,000M", "1,000G", "1,000T", "1,000"}
 	for _, v := range stub {
-		stat, err := byteSizeConvert(v)
+		stat, err := getSizeConvert(v)
 		assert.Nil(t, err)
 		if strings.HasSuffix(v, "K") {
 			assert.EqualValues(t, 1.024e+06, stat)

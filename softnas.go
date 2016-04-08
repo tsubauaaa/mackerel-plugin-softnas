@@ -46,7 +46,7 @@ var graphdef = map[string](mp.Graphs){
 	},
 	"softnas.numberofarccache": mp.Graphs{
 		Label: "SoftNas NumberOfArcCache",
-		Unit:  "integer",
+		Unit:  "float",
 		Metrics: [](mp.Metrics){
 			mp.Metrics{Name: "arc_hits", Label: "Hits", Diff: false},
 			mp.Metrics{Name: "arc_miss", Label: "Miss", Diff: false},
@@ -134,8 +134,8 @@ func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
 	return graphdef
 }
 
-//Byte to convert the StorageName & MemoryName
-func byteSizeConvert(name string) (float64, error) {
+//Get to convert the StorageName & MemoryName
+func getSizeConvert(name string) (float64, error) {
 	if strings.Contains(name, ",") {
 		name = strings.Replace(name, ",", "", -1)
 	}
@@ -155,6 +155,22 @@ func byteSizeConvert(name string) (float64, error) {
 		nameConv, err := strconv.ParseFloat(name, 64)
 		return nameConv, err
 	}
+}
+
+func getMetricsAverage(mets []float64) float64 {
+	sum, i := 0.0, 0
+	for _, met := range mets {
+		if met != 0.0 {
+			fmt.Println("met:", met)
+			sum += met
+			i++
+		}
+	}
+	if sum == 0.0 {
+		return 0.0
+	}
+	fmt.Println("i:", i)
+	return sum / float64(i)
 }
 
 //Get the session_id of softnas-cmd
@@ -187,11 +203,11 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	sdUsed := o.Result.Records[1].StorageData
 	sn0Split := strings.Split(sn0, " ")
 	sn1Split := strings.Split(sn1, " ")
-	snFree, err := byteSizeConvert(sn0Split[0])
+	snFree, err := getSizeConvert(sn0Split[0])
 	if err != nil {
 		return nil, err
 	}
-	snUsed, err := byteSizeConvert(sn1Split[0])
+	snUsed, err := getSizeConvert(sn1Split[0])
 	if err != nil {
 		return nil, err
 	}
@@ -207,11 +223,11 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	mdUsed := o.Result.Records[2].MemoryData
 	mn0Split := strings.Split(mn0, "\n")
 	mn1Split := strings.Split(mn1, "\n")
-	mnFree, err := byteSizeConvert(mn0Split[0])
+	mnFree, err := getSizeConvert(mn0Split[0])
 	if err != nil {
 		return nil, err
 	}
-	mnUsed, err := byteSizeConvert(mn1Split[0])
+	mnUsed, err := getSizeConvert(mn1Split[0])
 	if err != nil {
 		return nil, err
 	}
@@ -221,13 +237,18 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	stat["memorydata_free"] = mdFree
 
 	//Parse NumberOfArcCache Metrics
-	last := p.Result.Total - 1
-	ah := p.Result.Records[last].ArcHits
-	am := p.Result.Records[last].ArcMiss
-	ar := p.Result.Records[last].ArcRead
-	stat["arc_hits"] = float64(ah)
-	stat["arc_miss"] = float64(am)
-	stat["arc_read"] = float64(ar)
+	t := p.Result.Total
+	ahSlice := make([]float64, t)
+	amSlice := make([]float64, t)
+	arSlice := make([]float64, t)
+	for i := 0; i < t; i++ {
+		ahSlice = append(ahSlice, float64(p.Result.Records[i].ArcHits))
+		amSlice = append(amSlice, float64(p.Result.Records[i].ArcMiss))
+		arSlice = append(arSlice, float64(p.Result.Records[i].ArcRead))
+	}
+	stat["arc_hits"] = getMetricsAverage(ahSlice)
+	stat["arc_miss"] = getMetricsAverage(amSlice)
+	stat["arc_read"] = getMetricsAverage(arSlice)
 
 	return stat, nil
 }
