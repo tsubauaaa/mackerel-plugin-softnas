@@ -161,7 +161,6 @@ func getMetricsAverage(mets []float64) float64 {
 	sum, i := 0.0, 0
 	for _, met := range mets {
 		if met != 0.0 {
-			fmt.Println("met:", met)
 			sum += met
 			i++
 		}
@@ -169,7 +168,6 @@ func getMetricsAverage(mets []float64) float64 {
 	if sum == 0.0 {
 		return 0.0
 	}
-	fmt.Println("i:", i)
 	return sum / float64(i)
 }
 
