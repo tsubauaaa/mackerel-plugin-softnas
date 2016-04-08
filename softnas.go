@@ -44,6 +44,15 @@ var graphdef = map[string](mp.Graphs){
 			mp.Metrics{Name: "memorydata_free", Label: "Free", Diff: false},
 		},
 	},
+	"softnas.numberofarccache": mp.Graphs{
+		Label: "SoftNas NumberOfArcCache",
+		Unit:  "integer",
+		Metrics: [](mp.Metrics){
+			mp.Metrics{Name: "arc_hits", Label: "Hits", Diff: false},
+			mp.Metrics{Name: "arc_miss", Label: "Miss", Diff: false},
+			mp.Metrics{Name: "arc_read", Label: "Read", Diff: false},
+		},
+	},
 }
 
 // SoftnasPlugin mackerel plugin for softnas
@@ -113,7 +122,7 @@ type PerfmonResult struct {
 
 // FetchMetrics interface for mackerelplugin
 func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
-	stat, err := s.getSoftnasOverview()
+	stat, err := s.parseStats()
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +165,21 @@ func getSoftnasSessionID(cmd string, url string, user string, pw string) (int, e
 	return l.SessionID, err
 }
 
-func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
+func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	var o OverviewResult
+	var p PerfmonResult
 	stat := make(map[string]interface{})
-	result, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	ores, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal([]byte(result), &o)
+	pres, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal([]byte(ores), &o)
+	json.Unmarshal([]byte(pres), &p)
+
 	//Parse StorageName&StrageData Metrics
 	sn0 := o.Result.Records[0].StorageName
 	sn1 := o.Result.Records[1].StorageName
@@ -183,6 +199,7 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 	stat["storagename_free"] = snFree
 	stat["storagedata_used"] = sdUsed
 	stat["storagedata_free"] = sdFree
+
 	//Parse MemoryName&MemoryData Metrics
 	mn0 := o.Result.Records[3].MemoryName
 	mn1 := o.Result.Records[2].MemoryName
@@ -202,6 +219,16 @@ func (s SoftnasPlugin) getSoftnasOverview() (map[string]interface{}, error) {
 	stat["memoryname_free"] = mnFree
 	stat["memorydata_used"] = mdUsed
 	stat["memorydata_free"] = mdFree
+
+	//Parse NumberOfArcCache Metrics
+	last := p.Result.Total - 1
+	ah := p.Result.Records[last].ArcHits
+	am := p.Result.Records[last].ArcMiss
+	ar := p.Result.Records[last].ArcRead
+	stat["arc_hits"] = float64(ah)
+	stat["arc_miss"] = float64(am)
+	stat["arc_read"] = float64(ar)
+
 	return stat, nil
 }
 

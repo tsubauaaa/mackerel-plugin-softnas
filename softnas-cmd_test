@@ -6,8 +6,14 @@ fi
 
 BASE_URL=${!#}
 
-if [ "$1" = "login" -o "$1" = "overview" ]; then
+if [ "$1" = "login" ]; then
   curl $BASE_URL
+  exit 0
+elif [ "$1" = "overview" ]; then
+  curl $BASE_URL/overview
+  exit 0
+elif [ "$1" = "perfmon" ]; then
+  curl $BASE_URL/perfmon
   exit 0
 else
   exit 1

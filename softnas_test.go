@@ -24,12 +24,23 @@ func TestGetSessionID(t *testing.T) {
 }
 
 func TestFetchMetrics(t *testing.T) {
-	ts := httptest.NewServer(
-		http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprint(w, `{"success" : true, "session_id" : 12345, "result" : {"success":true,"msg":"","records":[{"storage_name":"44.8G Free\n(100.0%)","storage_data":99.99897820609},{"storage_name":"480.0K Used\n(0.0%)","storage_data":0.0010217939104395},{"memory_name":"666.7K\nCache Used\n(0.1%)","memory_data":0.064876091113447},{"memory_name":"1,002.9M\nCache Free\n(99.9%)","memory_data":99.935123908887}],"total":4}}`)
-			}))
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(
+		"/overview",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"success" : true, "session_id" : 12345, "result" : {"success":true,"msg":"","records":[{"storage_name":"44.8G Free\n(100.0%)","storage_data":99.99897820609},{"storage_name":"480.0K Used\n(0.0%)","storage_data":0.0010217939104395},{"memory_name":"666.7K\nCache Used\n(0.1%)","memory_data":0.064876091113447},{"memory_name":"1,002.9M\nCache Free\n(99.9%)","memory_data":99.935123908887}],"total":4}}`)
+		},
+	)
+	mux.HandleFunc(
+		"/perfmon",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"result": {"msg": "", "records":[{"arc_hitpercent": 0,"arc_hits": 0,"arc_miss": 0,"arc_read": 0,"arc_size": 0,"arc_target": 0,"cpu": 0,"io_diskreads": 0,"io_diskwrites": 0,"io_netreads": 0,"io_netwrites": 0,"iops_cifs": 0,"iops_iscsi": 0,"iops_nfs": 0,"latency_cifs": 0,"latency_iscsi": 0,"latency_nfs": 0,"time": "09:15"}],"success": true,"total": 1},"session_id": 12345,"success": true}`)
+		},
+	)
+	ts := httptest.NewServer(mux)
 	defer ts.Close()
 	var softnas SoftnasPlugin
 	softnas.Command = "./softnas-cmd_test"
@@ -70,11 +81,12 @@ func TestGraphDefinition(t *testing.T) {
 	var softnas SoftnasPlugin
 
 	graphdef := softnas.GraphDefinition()
-	if len(graphdef) != 4 {
+	if len(graphdef) != 5 {
 		t.Errorf("GetTempfilename: %d should be 4", len(graphdef))
 	}
 	assert.EqualValues(t, "SoftNas StorageName", graphdef["softnas.storagename"].Label)
 	assert.EqualValues(t, "SoftNas StorageData", graphdef["softnas.storagedata"].Label)
 	assert.EqualValues(t, "SoftNas MemoryName", graphdef["softnas.memoryname"].Label)
 	assert.EqualValues(t, "SoftNas MemoryData", graphdef["softnas.memorydata"].Label)
+	assert.EqualValues(t, "SoftNas NumberOfArcCache", graphdef["softnas.numberofarccache"].Label)
 }
