@@ -183,16 +183,16 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	var o OverviewResult
 	var p PerfmonResult
 	stat := make(map[string]interface{})
-	ores, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	oRes, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
-	pres, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	pRes, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal([]byte(ores), &o)
-	json.Unmarshal([]byte(pres), &p)
+	json.Unmarshal([]byte(oRes), &o)
+	json.Unmarshal([]byte(pRes), &p)
 
 	//Parse StorageName&StrageData Metrics
 	sn0 := o.Result.Records[0].StorageName
