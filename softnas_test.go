@@ -24,7 +24,6 @@ func TestSoftnasSessionID(t *testing.T) {
 }
 
 func TestFetchMetrics(t *testing.T) {
-
 	mux := http.NewServeMux()
 	mux.HandleFunc(
 		"/overview",
@@ -37,7 +36,7 @@ func TestFetchMetrics(t *testing.T) {
 		"/perfmon",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{"result": {"msg": "", "records":[{"arc_hitpercent": 0,"arc_hits": 0,"arc_miss": 0,"arc_read": 0,"arc_size": 0,"arc_target": 0,"cpu": 0,"io_diskreads": 0,"io_diskwrites": 0,"io_netreads": 0,"io_netwrites": 0,"iops_cifs": 0,"iops_iscsi": 0,"iops_nfs": 0,"latency_cifs": 0,"latency_iscsi": 0,"latency_nfs": 0,"time": "09:15"}],"success": true,"total": 1},"session_id": 12345,"success": true}`)
+			fmt.Fprint(w, `{"result": {"msg": "", "records":[{"arc_hitpercent": 0,"arc_hits": 10,"arc_miss": 9,"arc_read": 8,"arc_size": 0,"arc_target": 0,"cpu": 0,"io_diskreads": 0,"io_diskwrites": 0,"io_netreads": 0,"io_netwrites": 0,"iops_cifs": 0,"iops_iscsi": 0,"iops_nfs": 0,"latency_cifs": 0,"latency_iscsi": 0,"latency_nfs": 0,"time": "09:15"}],"success": true,"total": 1},"session_id": 12345,"success": true}`)
 		},
 	)
 	ts := httptest.NewServer(mux)
@@ -56,6 +55,9 @@ func TestFetchMetrics(t *testing.T) {
 	assert.EqualValues(t, 1.0516168704e+09, stat["memoryname_free"])
 	assert.EqualValues(t, 0.064876091113447, stat["memorydata_used"])
 	assert.EqualValues(t, 99.935123908887, stat["memorydata_free"])
+	assert.EqualValues(t, 10, stat["arc_hits"])
+	assert.EqualValues(t, 9, stat["arc_miss"])
+	assert.EqualValues(t, 8, stat["arc_read"])
 }
 
 func TestByteConvert(t *testing.T) {
@@ -77,6 +79,15 @@ func TestByteConvert(t *testing.T) {
 	}
 }
 
+func TestMetricsAgerage(t *testing.T) {
+	stub := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}
+	stub0 := []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
+	stat := getMetricsAverage(stub)
+	assert.EqualValues(t, 3.5, stat)
+	stat = getMetricsAverage(stub0)
+	assert.EqualValues(t, 0.0, stat)
+}
+
 func TestGraphDefinition(t *testing.T) {
 	var softnas SoftnasPlugin
 
@@ -84,9 +95,9 @@ func TestGraphDefinition(t *testing.T) {
 	if len(graphdef) != 5 {
 		t.Errorf("GetTempfilename: %d should be 4", len(graphdef))
 	}
-	assert.EqualValues(t, "SoftNas StorageName", graphdef["softnas.storagename"].Label)
-	assert.EqualValues(t, "SoftNas StorageData", graphdef["softnas.storagedata"].Label)
-	assert.EqualValues(t, "SoftNas MemoryName", graphdef["softnas.memoryname"].Label)
-	assert.EqualValues(t, "SoftNas MemoryData", graphdef["softnas.memorydata"].Label)
-	assert.EqualValues(t, "SoftNas NumberOfArcCache", graphdef["softnas.numberofarccache"].Label)
+	assert.EqualValues(t, "SoftNas Storage Size", graphdef["softnas.storagename"].Label)
+	assert.EqualValues(t, "SoftNas Storage Usage", graphdef["softnas.storagedata"].Label)
+	assert.EqualValues(t, "SoftNas Cache Memory Size", graphdef["softnas.memoryname"].Label)
+	assert.EqualValues(t, "SoftNas Cache Memory Usage", graphdef["softnas.memorydata"].Label)
+	assert.EqualValues(t, "SoftNas ARC Cache", graphdef["softnas.numberofarccache"].Label)
 }

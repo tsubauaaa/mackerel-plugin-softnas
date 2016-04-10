@@ -13,7 +13,7 @@ import (
 
 var graphdef = map[string](mp.Graphs){
 	"softnas.storagename": mp.Graphs{
-		Label: "SoftNas StorageName",
+		Label: "SoftNas Storage Size",
 		Unit:  "bytes",
 		Metrics: [](mp.Metrics){
 			mp.Metrics{Name: "storagename_used", Label: "Used", Diff: false},
@@ -21,7 +21,7 @@ var graphdef = map[string](mp.Graphs){
 		},
 	},
 	"softnas.storagedata": mp.Graphs{
-		Label: "SoftNas StorageData",
+		Label: "SoftNas Storage Usage",
 		Unit:  "percentage",
 		Metrics: [](mp.Metrics){
 			mp.Metrics{Name: "storagedata_used", Label: "Used", Diff: false},
@@ -29,23 +29,23 @@ var graphdef = map[string](mp.Graphs){
 		},
 	},
 	"softnas.memoryname": mp.Graphs{
-		Label: "SoftNas MemoryName",
+		Label: "SoftNas Cache Memory Size",
 		Unit:  "bytes",
 		Metrics: [](mp.Metrics){
-			mp.Metrics{Name: "memoryname_used", Label: "Used", Diff: false},
-			mp.Metrics{Name: "memoryname_free", Label: "Free", Diff: false},
+			mp.Metrics{Name: "memoryname_used", Label: "Used", Diff: false, Stacked: true},
+			mp.Metrics{Name: "memoryname_free", Label: "Free", Diff: false, Stacked: true},
 		},
 	},
 	"softnas.memorydata": mp.Graphs{
-		Label: "SoftNas MemoryData",
+		Label: "SoftNas Cache Memory Usage",
 		Unit:  "percentage",
 		Metrics: [](mp.Metrics){
-			mp.Metrics{Name: "memorydata_used", Label: "Used", Diff: false},
-			mp.Metrics{Name: "memorydata_free", Label: "Free", Diff: false},
+			mp.Metrics{Name: "memorydata_used", Label: "Used", Diff: false, Stacked: true},
+			mp.Metrics{Name: "memorydata_free", Label: "Free", Diff: false, Stacked: true},
 		},
 	},
 	"softnas.numberofarccache": mp.Graphs{
-		Label: "SoftNas NumberOfArcCache",
+		Label: "SoftNas ARC Cache",
 		Unit:  "float",
 		Metrics: [](mp.Metrics){
 			mp.Metrics{Name: "arc_hits", Label: "Hits", Diff: false},
@@ -120,6 +120,30 @@ type PerfmonResult struct {
 	Success   bool `json:"success"`
 }
 
+// PoolDetailsResult softnas-cmd pooldetails result for metrics
+type PoolDetailsResult struct {
+	Result struct {
+		Msg     string `json:"msg"`
+		Records []struct {
+			ChecksumErrors string `json:"checksum_errors"`
+			Extended       string `json:"extended"`
+			Name           string `json:"name"`
+			ReadIOPS       string `json:"read_IOPS"`
+			ReadBandwidth  string `json:"read_bandwidth"`
+			ReadErrors     string `json:"read_errors"`
+			Scrub          string `json:"scrub"`
+			Status         string `json:"status"`
+			WriteIOPS      string `json:"write_IOPS"`
+			WriteBandwidth string `json:"write_bandwidth"`
+			WriteErrors    string `json:"write_errors"`
+		} `json:"records"`
+		Success bool `json:"success"`
+		Total   int  `json:"total"`
+	} `json:"result"`
+	SessionID int  `json:"session_id"`
+	Success   bool `json:"success"`
+}
+
 // FetchMetrics interface for mackerelplugin
 func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 	stat, err := s.parseStats()
@@ -158,7 +182,8 @@ func getSizeConvert(name string) (float64, error) {
 }
 
 func getMetricsAverage(mets []float64) float64 {
-	sum, i := 0.0, 0
+	var sum float64
+	i := 0
 	for _, met := range mets {
 		if met != 0.0 {
 			sum += met
@@ -195,44 +220,36 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	json.Unmarshal([]byte(pRes), &p)
 
 	//Parse StorageName&StrageData Metrics
-	sn0 := o.Result.Records[0].StorageName
-	sn1 := o.Result.Records[1].StorageName
+	snFree, err := getSizeConvert(strings.Split(o.Result.Records[0].StorageName, " ")[0])
+	if err != nil {
+		return nil, err
+	}
+	snUsed, err := getSizeConvert(strings.Split(o.Result.Records[1].StorageName, " ")[0])
+	if err != nil {
+		return nil, err
+	}
 	sdFree := o.Result.Records[0].StorageData
 	sdUsed := o.Result.Records[1].StorageData
-	sn0Split := strings.Split(sn0, " ")
-	sn1Split := strings.Split(sn1, " ")
-	snFree, err := getSizeConvert(sn0Split[0])
-	if err != nil {
-		return nil, err
-	}
-	snUsed, err := getSizeConvert(sn1Split[0])
-	if err != nil {
-		return nil, err
-	}
-	stat["storagename_used"] = snUsed
 	stat["storagename_free"] = snFree
-	stat["storagedata_used"] = sdUsed
+	stat["storagename_used"] = snUsed
 	stat["storagedata_free"] = sdFree
+	stat["storagedata_used"] = sdUsed
 
 	//Parse MemoryName&MemoryData Metrics
-	mn0 := o.Result.Records[3].MemoryName
-	mn1 := o.Result.Records[2].MemoryName
+	mnFree, err := getSizeConvert(strings.Split(o.Result.Records[3].MemoryName, "\n")[0])
+	if err != nil {
+		return nil, err
+	}
+	mnUsed, err := getSizeConvert(strings.Split(o.Result.Records[2].MemoryName, "\n")[0])
+	if err != nil {
+		return nil, err
+	}
 	mdFree := o.Result.Records[3].MemoryData
 	mdUsed := o.Result.Records[2].MemoryData
-	mn0Split := strings.Split(mn0, "\n")
-	mn1Split := strings.Split(mn1, "\n")
-	mnFree, err := getSizeConvert(mn0Split[0])
-	if err != nil {
-		return nil, err
-	}
-	mnUsed, err := getSizeConvert(mn1Split[0])
-	if err != nil {
-		return nil, err
-	}
-	stat["memoryname_used"] = mnUsed
 	stat["memoryname_free"] = mnFree
-	stat["memorydata_used"] = mdUsed
+	stat["memoryname_used"] = mnUsed
 	stat["memorydata_free"] = mdFree
+	stat["memorydata_used"] = mdUsed
 
 	//Parse NumberOfArcCache Metrics
 	t := p.Result.Total
