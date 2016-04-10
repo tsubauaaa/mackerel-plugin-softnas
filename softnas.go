@@ -53,6 +53,14 @@ var graphdef = map[string](mp.Graphs){
 			mp.Metrics{Name: "arc_read", Label: "Read", Diff: false},
 		},
 	},
+	"softnas.pooliops": mp.Graphs{
+		Label: "SoftNas Read/Write IOPS",
+		Unit:  "iops",
+		Metrics: [](mp.Metrics){
+			mp.Metrics{Name: "read_iops", Label: "Read_IOPS", Diff: false},
+			mp.Metrics{Name: "write_iops", Label: "Write_IOPS", Diff: false},
+		},
+	},
 }
 
 // SoftnasPlugin mackerel plugin for softnas
@@ -207,6 +215,7 @@ func getSoftnasSessionID(cmd string, url string, user string, pw string) (int, e
 func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	var o OverviewResult
 	var p PerfmonResult
+	var pd PoolDetailsResult
 	stat := make(map[string]interface{})
 	oRes, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
@@ -216,8 +225,13 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	pdRes, err := exec.Command(s.Command, "pooldetails", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	if err != nil {
+		return nil, err
+	}
 	json.Unmarshal([]byte(oRes), &o)
 	json.Unmarshal([]byte(pRes), &p)
+	json.Unmarshal([]byte(pdRes), &pd)
 
 	//Parse StorageName&StrageData Metrics
 	snFree, err := getSizeConvert(strings.Split(o.Result.Records[0].StorageName, " ")[0])
@@ -265,6 +279,15 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	stat["arc_miss"] = getMetricsAverage(amSlice)
 	stat["arc_read"] = getMetricsAverage(arSlice)
 
+	//Parse PoolIOPS Metrics
+	stat["read_iops"], err = strconv.ParseFloat(pd.Result.Records[1].ReadIOPS, 64)
+	if err != nil {
+		return nil, err
+	}
+	stat["write_iops"], err = strconv.ParseFloat(pd.Result.Records[1].WriteIOPS, 64)
+	if err != nil {
+		return nil, err
+	}
 	return stat, nil
 }
 
