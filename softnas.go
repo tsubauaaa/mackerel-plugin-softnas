@@ -265,7 +265,7 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	stat["memorydata_free"] = mdFree
 	stat["memorydata_used"] = mdUsed
 
-	//Parse NumberOfArcCache Metrics
+	//Parse NumberOfArcCache Metrics (average of a minute)
 	t := p.Result.Total
 	ahSlice := make([]float64, t)
 	amSlice := make([]float64, t)
