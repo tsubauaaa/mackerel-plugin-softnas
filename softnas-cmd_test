@@ -15,6 +15,9 @@ elif [ "$1" = "overview" ]; then
 elif [ "$1" = "perfmon" ]; then
   curl $BASE_URL/perfmon
   exit 0
+elif [ "$1" = "pooldetails" ]; then
+  curl $BASE_URL/pooldetails
+  exit 0
 else
   exit 1
 fi

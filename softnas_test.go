@@ -39,6 +39,13 @@ func TestFetchMetrics(t *testing.T) {
 			fmt.Fprint(w, `{"result": {"msg": "", "records":[{"arc_hitpercent": 0,"arc_hits": 10,"arc_miss": 9,"arc_read": 8,"arc_size": 0,"arc_target": 0,"cpu": 0,"io_diskreads": 0,"io_diskwrites": 0,"io_netreads": 0,"io_netwrites": 0,"iops_cifs": 0,"iops_iscsi": 0,"iops_nfs": 0,"latency_cifs": 0,"latency_iscsi": 0,"latency_nfs": 0,"time": "09:15"}],"success": true,"total": 1},"session_id": 12345,"success": true}`)
 		},
 	)
+	mux.HandleFunc(
+		"/pooldetails",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"success" : true, "session_id" : 31214, "result" : {"success":true,"msg":"Pool details request for pool '' was successful.","records":[{"name":"pool1","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"10","write_IOPS":"11","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"},{"name":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/dev\/s3-0","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"9","write_IOPS":"8","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"}],"total":2}}`)
+		},
+	)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 	var softnas SoftnasPlugin
@@ -58,6 +65,8 @@ func TestFetchMetrics(t *testing.T) {
 	assert.EqualValues(t, 10, stat["arc_hits"])
 	assert.EqualValues(t, 9, stat["arc_miss"])
 	assert.EqualValues(t, 8, stat["arc_read"])
+	assert.EqualValues(t, 10, stat["read_iops"])
+	assert.EqualValues(t, 11, stat["write_iops"])
 }
 
 func TestByteConvert(t *testing.T) {
@@ -92,12 +101,13 @@ func TestGraphDefinition(t *testing.T) {
 	var softnas SoftnasPlugin
 
 	graphdef := softnas.GraphDefinition()
-	if len(graphdef) != 5 {
-		t.Errorf("GetTempfilename: %d should be 4", len(graphdef))
+	if len(graphdef) != 6 {
+		t.Errorf("GetTempfilename: %d should be 6", len(graphdef))
 	}
 	assert.EqualValues(t, "SoftNas Storage Size", graphdef["softnas.storagename"].Label)
 	assert.EqualValues(t, "SoftNas Storage Usage", graphdef["softnas.storagedata"].Label)
 	assert.EqualValues(t, "SoftNas Cache Memory Size", graphdef["softnas.memoryname"].Label)
 	assert.EqualValues(t, "SoftNas Cache Memory Usage", graphdef["softnas.memorydata"].Label)
 	assert.EqualValues(t, "SoftNas ARC Cache", graphdef["softnas.numberofarccache"].Label)
+	assert.EqualValues(t, "SoftNas Read/Write Pool IOPS", graphdef["softnas.pooliops"].Label)
 }
