@@ -158,8 +158,8 @@ func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
 			Label: "SoftNas Read/Write Pool IOPS",
 			Unit:  "iops",
 			Metrics: [](mp.Metrics){
-				mp.Metrics{Name: "read_iops", Label: "Read_IOPS", Diff: false},
-				mp.Metrics{Name: "write_iops", Label: "Write_IOPS", Diff: false},
+				mp.Metrics{Name: "pool1_read_iops", Label: "Read_IOPS", Diff: false},
+				mp.Metrics{Name: "pool1_write_iops", Label: "Write_IOPS", Diff: false},
 			},
 		},
 	}
@@ -212,65 +212,51 @@ func getSoftnasSessionID(cmd string, url string, user string, pw string) (int, e
 	return l.SessionID, err
 }
 
-func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
+func (s *SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	var o OverviewResult
 	var p PerfmonResult
-	var pd PoolDetailsResult
 	stat := make(map[string]interface{})
-	or, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	oRes, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
-	pr, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	pRes, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
 	if err != nil {
 		return nil, err
 	}
-	pdr, err := exec.Command(s.Command, "pooldetails", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
-	if err != nil {
-		return nil, err
-	}
-	json.Unmarshal([]byte(or), &o)
-	json.Unmarshal([]byte(pr), &p)
-	json.Unmarshal([]byte(pdr), &pd)
+	json.Unmarshal([]byte(oRes), &o)
+	json.Unmarshal([]byte(pRes), &p)
 
 	//Parse StorageName&StrageData Metrics
-	snFree, err := getSizeConvert(strings.Split(o.Result.Records[0].StorageName, " ")[0])
+	stat["storagename_free"], err = getSizeConvert(strings.Split(o.Result.Records[0].StorageName, " ")[0])
 	if err != nil {
 		return nil, err
 	}
-	snUsed, err := getSizeConvert(strings.Split(o.Result.Records[1].StorageName, " ")[0])
+	stat["storagename_used"], err = getSizeConvert(strings.Split(o.Result.Records[1].StorageName, " ")[0])
 	if err != nil {
 		return nil, err
 	}
-	sdFree := o.Result.Records[0].StorageData
-	sdUsed := o.Result.Records[1].StorageData
-	stat["storagename_free"] = snFree
-	stat["storagename_used"] = snUsed
-	stat["storagedata_free"] = sdFree
-	stat["storagedata_used"] = sdUsed
+	stat["storagedata_free"] = o.Result.Records[0].StorageData
+	stat["storagedata_used"] = o.Result.Records[1].StorageData
 
 	//Parse MemoryName&MemoryData Metrics
-	mnFree, err := getSizeConvert(strings.Split(o.Result.Records[3].MemoryName, "\n")[0])
+	stat["memoryname_free"], err = getSizeConvert(strings.Split(o.Result.Records[3].MemoryName, "\n")[0])
 	if err != nil {
 		return nil, err
 	}
-	mnUsed, err := getSizeConvert(strings.Split(o.Result.Records[2].MemoryName, "\n")[0])
+	stat["memoryname_used"], err = getSizeConvert(strings.Split(o.Result.Records[2].MemoryName, "\n")[0])
 	if err != nil {
 		return nil, err
 	}
-	mdFree := o.Result.Records[3].MemoryData
-	mdUsed := o.Result.Records[2].MemoryData
-	stat["memoryname_free"] = mnFree
-	stat["memoryname_used"] = mnUsed
-	stat["memorydata_free"] = mdFree
-	stat["memorydata_used"] = mdUsed
+	stat["memorydata_free"] = o.Result.Records[3].MemoryData
+	stat["memorydata_used"] = o.Result.Records[2].MemoryData
 
 	//Parse NumberOfArcCache Metrics (average of a minute)
-	pt := p.Result.Total
-	ahSlice := make([]float64, pt)
-	amSlice := make([]float64, pt)
-	arSlice := make([]float64, pt)
-	for i := 0; i < pt; i++ {
+	pTotal := p.Result.Total
+	ahSlice := make([]float64, pTotal)
+	amSlice := make([]float64, pTotal)
+	arSlice := make([]float64, pTotal)
+	for i := 0; i < pTotal; i++ {
 		ahSlice = append(ahSlice, float64(p.Result.Records[i].ArcHits))
 		amSlice = append(amSlice, float64(p.Result.Records[i].ArcMiss))
 		arSlice = append(arSlice, float64(p.Result.Records[i].ArcRead))
@@ -279,17 +265,41 @@ func (s SoftnasPlugin) parseStats() (map[string]interface{}, error) {
 	stat["arc_miss"] = getMetricsAverage(amSlice)
 	stat["arc_read"] = getMetricsAverage(arSlice)
 
-	//Parse PoolIOPS Metrics
-	stat["read_iops"], err = strconv.ParseFloat(pd.Result.Records[0].ReadIOPS, 64)
+	//Parse Pool IOPS Metrics
+	pStats, err := s.getPoolIOPSStats()
 	if err != nil {
 		return nil, err
 	}
-	stat["write_iops"], err = strconv.ParseFloat(pd.Result.Records[0].WriteIOPS, 64)
-	if err != nil {
-		return nil, err
+	for k, v := range pStats {
+		stat[k] = v
 	}
 
 	return stat, nil
+}
+
+func (s *SoftnasPlugin) getPoolIOPSStats() (map[string]interface{}, error) {
+	var p PoolDetailsResult
+	stat := make(map[string]interface{})
+	pdRes, err := exec.Command(s.Command, "pooldetails", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal([]byte(pdRes), &p)
+	pdTotal := p.Result.Total
+	for i := 0; i < pdTotal; i++ {
+		if i%2 == 0 {
+			pn := p.Result.Records[i].Name
+			stat[pn+"_read_iops"], err = strconv.ParseFloat(p.Result.Records[i].ReadIOPS, 64)
+			if err != nil {
+				return nil, err
+			}
+			stat[pn+"_write_iops"], err = strconv.ParseFloat(p.Result.Records[i].WriteIOPS, 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return stat, err
 }
 
 func main() {
