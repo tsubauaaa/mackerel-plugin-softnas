@@ -18,7 +18,7 @@ func TestSoftnasSessionID(t *testing.T) {
 				fmt.Fprintln(w, `{"success" : true, "session_id" : 12345, "result" : {}}`)
 			}))
 	defer ts.Close()
-	id, err := getSoftnasSessionID("./softnas-cmd_test", ts.URL, "softnas", "Pass4W0rd")
+	id, err := fetchSessionID("./softnas-cmd_test", ts.URL, "softnas", "Pass4W0rd")
 	assert.Nil(t, err)
 	assert.EqualValues(t, 12345, id)
 }
@@ -72,7 +72,7 @@ func TestFetchMetrics(t *testing.T) {
 func TestByteConvert(t *testing.T) {
 	stub := []string{"1,000K", "1,000M", "1,000G", "1,000T", "1,000"}
 	for _, v := range stub {
-		stat, err := getSizeConvert(v)
+		stat, err := convertUnit(v)
 		assert.Nil(t, err)
 		if strings.HasSuffix(v, "K") {
 			assert.EqualValues(t, 1.024e+06, stat)
@@ -91,9 +91,9 @@ func TestByteConvert(t *testing.T) {
 func TestMetricsAgerage(t *testing.T) {
 	stub := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}
 	stub0 := []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-	stat := getMetricsAverage(stub)
+	stat := culculateAverage(stub)
 	assert.EqualValues(t, 3.5, stat)
-	stat = getMetricsAverage(stub0)
+	stat = culculateAverage(stub0)
 	assert.EqualValues(t, 0.0, stat)
 }
 
