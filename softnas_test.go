@@ -43,7 +43,7 @@ func TestFetchMetrics(t *testing.T) {
 		"/pooldetails",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{"success" : true, "session_id" : 31214, "result" : {"success":true,"msg":"Pool details request for pool '' was successful.","records":[{"name":"pool1","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"10","write_IOPS":"11","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"},{"name":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/dev\/s3-0","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"9","write_IOPS":"8","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"}],"total":2}}`)
+			fmt.Fprint(w, `{"success" : true, "session_id" : 31214, "result" : {"success":true,"msg":"Pool details request for pool '' was successful.","records":[{"name":"pool01","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"10","write_IOPS":"11","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"},{"name":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/dev\/s3-0","status":"ONLINE","read_errors":"0","write_errors":"0","checksum_errors":"0","read_IOPS":"9","write_IOPS":"8","read_bandwidth":"0","write_bandwidth":"0","extended":"","scrub":"none requested"}],"total":2}}`)
 		},
 	)
 	ts := httptest.NewServer(mux)
@@ -52,7 +52,7 @@ func TestFetchMetrics(t *testing.T) {
 	softnas.Command = "./softnas-cmd_test"
 	softnas.BaseURL = ts.URL
 	softnas.SessionID = "12345"
-	softnas.PoolNames = []string{"pool1"}
+	softnas.PoolNames = []string{"pool01"}
 	stat, err := softnas.FetchMetrics()
 	assert.Nil(t, err)
 	assert.EqualValues(t, 491520, stat["storagename_used"])
@@ -67,8 +67,8 @@ func TestFetchMetrics(t *testing.T) {
 	assert.EqualValues(t, 9, stat["arc_miss"])
 	assert.EqualValues(t, 8, stat["arc_read"])
 	for _, pn := range softnas.PoolNames {
-		assert.EqualValues(t, 10, stat[pn+"read_iops"])
-		assert.EqualValues(t, 11, stat[pn+"write_iops"])
+		assert.EqualValues(t, 10, stat[pn+"_read_iops"])
+		assert.EqualValues(t, 11, stat[pn+"_write_iops"])
 	}
 }
 
