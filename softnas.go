@@ -111,25 +111,31 @@ func convertUnit(name string) (float64, error) {
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024, err
+		return nameConv * 1024, nil
 	case strings.HasSuffix(name, "M"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "M"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024, err
+		return nameConv * 1024 * 1024, nil
 	case strings.HasSuffix(name, "G"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "G"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024 * 1024, err
+		return nameConv * 1024 * 1024 * 1024, nil
 	case strings.HasSuffix(name, "T"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "T"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024 * 1024, err
+		return nameConv * 1024 * 1024 * 1024 * 1024, nil
+	case strings.HasSuffix(name, "B"):
+		nameConv, err := strconv.ParseFloat(strings.Trim(name, "B"), 64)
+		if err != nil {
+			return 0.0, err
+		}
+		return nameConv, nil
 	default:
 		nameConv, err := strconv.ParseFloat(name, 64)
 		if err != nil {
@@ -154,14 +160,14 @@ func culculateAverage(mets []float64) float64 {
 	return sum / float64(i)
 }
 
-func fetchSessionID(cmd string, url string, user string, pw string) (int, error) {
+func fetchSessionID(cmd, url, user, pw string) (int, error) {
 	var l LoginResult
 	result, err := exec.Command(cmd, "login", user, pw, "--base_url", url).Output()
 	json.Unmarshal([]byte(result), &l)
 	return l.SessionID, err
 }
 
-func fetchPoolName(cmd, id, url string) ([]string, error) {
+func fetchPoolNames(cmd, id, url string) ([]string, error) {
 	var p PoolDetailsResult
 	result, err := exec.Command(cmd, "pooldetails", "--session_id", id, "--base_url", url).Output()
 	if err != nil {
@@ -179,16 +185,10 @@ func fetchPoolName(cmd, id, url string) ([]string, error) {
 	return pns, nil
 }
 
-func mergeStats(dst, src map[string]interface{}) {
-	for k, v := range src {
-		dst[k] = v
-	}
-}
-
-func (s *SoftnasPlugin) fetchOverviewMetrics() (map[string]interface{}, error) {
+func fetchOverviewMetrics(cmd, id, url string) (map[string]interface{}, error) {
 	var o OverviewResult
 	stat := make(map[string]interface{})
-	result, err := exec.Command(s.Command, "overview", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	result, err := exec.Command(cmd, "overview", "--session_id", id, "--base_url", url).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -221,23 +221,23 @@ func (s *SoftnasPlugin) fetchOverviewMetrics() (map[string]interface{}, error) {
 	return stat, nil
 }
 
-func (s *SoftnasPlugin) fetchPerfMonMetrics() (map[string]interface{}, error) {
+func fetchPerfMonMetrics(cmd, id, url string) (map[string]interface{}, error) {
 	var p PerfmonResult
 	stat := make(map[string]interface{})
-	result, err := exec.Command(s.Command, "perfmon", "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	result, err := exec.Command(cmd, "perfmon", "--session_id", id, "--base_url", url).Output()
 	if err != nil {
 		return nil, err
 	}
 	json.Unmarshal([]byte(result), &p)
 
-	pTotal := p.Result.Total
-	ahSlice := make([]float64, pTotal)
-	amSlice := make([]float64, pTotal)
-	arSlice := make([]float64, pTotal)
-	for i := 0; i < pTotal; i++ {
-		ahSlice = append(ahSlice, float64(p.Result.Records[i].ArcHits))
-		amSlice = append(amSlice, float64(p.Result.Records[i].ArcMiss))
-		arSlice = append(arSlice, float64(p.Result.Records[i].ArcRead))
+	total := p.Result.Total
+	ahSlice := make([]float64, total)
+	amSlice := make([]float64, total)
+	arSlice := make([]float64, total)
+	for _, record := range p.Result.Records {
+		ahSlice = append(ahSlice, float64(record.ArcHits))
+		amSlice = append(amSlice, float64(record.ArcMiss))
+		arSlice = append(arSlice, float64(record.ArcRead))
 	}
 	stat["arc_hits"] = culculateAverage(ahSlice)
 	stat["arc_miss"] = culculateAverage(amSlice)
@@ -246,11 +246,11 @@ func (s *SoftnasPlugin) fetchPerfMonMetrics() (map[string]interface{}, error) {
 	return stat, nil
 }
 
-func (s *SoftnasPlugin) fetchPoolIOPSMetrics() (map[string]interface{}, error) {
+func fetchPoolIOPSMetrics(cmd, id, url string, poolNames []string) (map[string]interface{}, error) {
 	var p PoolDetailsResult
 	stat := make(map[string]interface{})
-	for _, pn := range s.PoolNames {
-		result, err := exec.Command(s.Command, "pooldetails", pn, "--session_id", s.SessionID, "--base_url", s.BaseURL).Output()
+	for _, pn := range poolNames {
+		result, err := exec.Command(cmd, "pooldetails", pn, "--session_id", id, "--base_url", url).Output()
 		if err != nil {
 			return nil, err
 		}
@@ -267,27 +267,30 @@ func (s *SoftnasPlugin) fetchPoolIOPSMetrics() (map[string]interface{}, error) {
 	return stat, nil
 }
 
+func mergeStats(dst, src map[string]interface{}) {
+	for k, v := range src {
+		dst[k] = v
+	}
+}
+
 // FetchMetrics interface for mackerelplugin
 func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
-	oStats, err := s.fetchOverviewMetrics()
+	oStats, err := fetchOverviewMetrics(s.Command, s.SessionID, s.BaseURL)
 	if err != nil {
 		return nil, err
 	}
-	pmStats, err := s.fetchPerfMonMetrics()
+	pmStats, err := fetchPerfMonMetrics(s.Command, s.SessionID, s.BaseURL)
 	if err != nil {
 		return nil, err
 	}
-	pStats, err := s.fetchPoolIOPSMetrics()
+	pStats, err := fetchPoolIOPSMetrics(s.Command, s.SessionID, s.BaseURL, s.PoolNames)
 	if err != nil {
 		return nil, err
 	}
 	stat := make(map[string]interface{})
 
-	//Parse Overview Metrics
 	mergeStats(stat, oStats)
-	//Parse PerfMon Metrics
 	mergeStats(stat, pmStats)
-	//Parse Pool IOPS Metrics
 	mergeStats(stat, pStats)
 
 	return stat, nil
@@ -296,14 +299,14 @@ func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 // GraphDefinition interface for mackerel plugin
 func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
 	metrics := make([](mp.Metrics), 0, len(s.PoolNames))
-	for _, name := range s.PoolNames {
-		rm := mp.Metrics{Name: name + "_read_iops"}
-		rm.Label = strings.ToUpper(name) + "_Read_IOPS"
+	for _, pn := range s.PoolNames {
+		rm := mp.Metrics{Name: pn + "_read_iops"}
+		rm.Label = strings.ToUpper(pn) + "_Read_IOPS"
 		rm.Diff = false
 		metrics = append(metrics, rm)
 
-		wm := mp.Metrics{Name: name + "_write_iops"}
-		wm.Label = strings.ToUpper(name) + "_Write_IOPS"
+		wm := mp.Metrics{Name: pn + "_write_iops"}
+		wm.Label = strings.ToUpper(pn) + "_Write_IOPS"
 		wm.Diff = false
 		metrics = append(metrics, wm)
 	}
@@ -313,16 +316,16 @@ func (s SoftnasPlugin) GraphDefinition() map[string](mp.Graphs) {
 			Label: "SoftNas Storage Size",
 			Unit:  "bytes",
 			Metrics: [](mp.Metrics){
-				mp.Metrics{Name: "storagename_used", Label: "Used", Diff: false},
-				mp.Metrics{Name: "storagename_free", Label: "Free", Diff: false},
+				mp.Metrics{Name: "storagename_used", Label: "Used", Diff: false, Stacked: true},
+				mp.Metrics{Name: "storagename_free", Label: "Free", Diff: false, Stacked: true},
 			},
 		},
 		"softnas.storagedata": mp.Graphs{
 			Label: "SoftNas Storage Usage",
 			Unit:  "percentage",
 			Metrics: [](mp.Metrics){
-				mp.Metrics{Name: "storagedata_used", Label: "Used", Diff: false},
-				mp.Metrics{Name: "storagedata_free", Label: "Free", Diff: false},
+				mp.Metrics{Name: "storagedata_used", Label: "Used", Diff: false, Stacked: true},
+				mp.Metrics{Name: "storagedata_free", Label: "Free", Diff: false, Stacked: true},
 			},
 		},
 		"softnas.memoryname": mp.Graphs{
@@ -379,7 +382,7 @@ func main() {
 
 	softnas.SessionID = strconv.Itoa(id)
 
-	pns, err := fetchPoolName(*optCommand, softnas.SessionID, *optBaseURL)
+	pns, err := fetchPoolNames(*optCommand, softnas.SessionID, *optBaseURL)
 	if err != nil {
 		fmt.Println(err)
 	}

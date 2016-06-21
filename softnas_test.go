@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSoftnasSessionID(t *testing.T) {
+func TestFetchSessionID(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +52,7 @@ func TestFetchMetrics(t *testing.T) {
 	softnas.Command = "./softnas-cmd_test"
 	softnas.BaseURL = ts.URL
 	softnas.SessionID = "12345"
+	softnas.PoolNames = []string{"pool1"}
 	stat, err := softnas.FetchMetrics()
 	assert.Nil(t, err)
 	assert.EqualValues(t, 491520, stat["storagename_used"])
@@ -65,12 +66,14 @@ func TestFetchMetrics(t *testing.T) {
 	assert.EqualValues(t, 10, stat["arc_hits"])
 	assert.EqualValues(t, 9, stat["arc_miss"])
 	assert.EqualValues(t, 8, stat["arc_read"])
-	assert.EqualValues(t, 10, stat["read_iops"])
-	assert.EqualValues(t, 11, stat["write_iops"])
+	for _, pn := range softnas.PoolNames {
+		assert.EqualValues(t, 10, stat[pn+"read_iops"])
+		assert.EqualValues(t, 11, stat[pn+"write_iops"])
+	}
 }
 
-func TestByteConvert(t *testing.T) {
-	stub := []string{"1,000K", "1,000M", "1,000G", "1,000T", "1,000"}
+func TestConvertUnit(t *testing.T) {
+	stub := []string{"1,000K", "1,000M", "1,000G", "1,000T", "0.0B", "1,000"}
 	for _, v := range stub {
 		stat, err := convertUnit(v)
 		assert.Nil(t, err)
@@ -82,13 +85,15 @@ func TestByteConvert(t *testing.T) {
 			assert.EqualValues(t, 1.073741824e+12, stat)
 		} else if strings.HasSuffix(v, "T") {
 			assert.EqualValues(t, 1.099511627776e+15, stat)
+		} else if strings.HasSuffix(v, "B") {
+			assert.EqualValues(t, 0.0, stat)
 		} else {
 			assert.EqualValues(t, 1000, stat)
 		}
 	}
 }
 
-func TestMetricsAgerage(t *testing.T) {
+func TestCulculateAgerage(t *testing.T) {
 	stub := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}
 	stub0 := []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
 	stat := culculateAverage(stub)
