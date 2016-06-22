@@ -149,10 +149,11 @@ func culculateAverage(mets []float64) float64 {
 	var sum float64
 	i := 0
 	for _, met := range mets {
-		if met != 0.0 {
-			sum += met
-			i++
+		if met == 0.0 {
+			continue
 		}
+		sum += met
+		i++
 	}
 	if sum == 0.0 {
 		return 0.0
