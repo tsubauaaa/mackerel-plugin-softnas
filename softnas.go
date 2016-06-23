@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -111,25 +112,25 @@ func convertUnit(name string) (float64, error) {
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024, nil
+		return nameConv * math.Pow10(3), nil
 	case strings.HasSuffix(name, "M"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "M"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024, nil
+		return nameConv * math.Pow10(6), nil
 	case strings.HasSuffix(name, "G"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "G"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024 * 1024, nil
+		return nameConv * math.Pow10(9), nil
 	case strings.HasSuffix(name, "T"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "T"), 64)
 		if err != nil {
 			return 0.0, err
 		}
-		return nameConv * 1024 * 1024 * 1024 * 1024, nil
+		return nameConv * math.Pow10(12), nil
 	case strings.HasSuffix(name, "B"):
 		nameConv, err := strconv.ParseFloat(strings.Trim(name, "B"), 64)
 		if err != nil {
@@ -280,14 +281,17 @@ func (s SoftnasPlugin) FetchMetrics() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	pmStats, err := fetchPerfMonMetrics(s.Command, s.SessionID, s.BaseURL)
 	if err != nil {
 		return nil, err
 	}
+
 	pStats, err := fetchPoolIOPSMetrics(s.Command, s.SessionID, s.BaseURL, s.PoolNames)
 	if err != nil {
 		return nil, err
 	}
+
 	stat := make(map[string]interface{})
 
 	mergeStats(stat, oStats)
