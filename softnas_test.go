@@ -55,12 +55,12 @@ func TestFetchMetrics(t *testing.T) {
 	softnas.PoolNames = []string{"pool01"}
 	stat, err := softnas.FetchMetrics()
 	assert.Nil(t, err)
-	assert.EqualValues(t, 491520, stat["storagename_used"])
-	assert.EqualValues(t, 4.81036337152e+10, stat["storagename_free"])
+	assert.EqualValues(t, 480000, stat["storagename_used"])
+	assert.EqualValues(t, 4.48e+10, stat["storagename_free"])
 	assert.EqualValues(t, 0.0010217939104395, stat["storagedata_used"])
 	assert.EqualValues(t, 99.99897820609, stat["storagedata_free"])
-	assert.EqualValues(t, 682700.8, stat["memoryname_used"])
-	assert.EqualValues(t, 1.0516168704e+09, stat["memoryname_free"])
+	assert.EqualValues(t, 666700, stat["memoryname_used"])
+	assert.EqualValues(t, 1.0029e+09, stat["memoryname_free"])
 	assert.EqualValues(t, 0.064876091113447, stat["memorydata_used"])
 	assert.EqualValues(t, 99.935123908887, stat["memorydata_free"])
 	assert.EqualValues(t, 10, stat["arc_hits"])
@@ -78,13 +78,13 @@ func TestConvertUnit(t *testing.T) {
 		stat, err := convertUnit(v)
 		assert.Nil(t, err)
 		if strings.HasSuffix(v, "K") {
-			assert.EqualValues(t, 1.024e+06, stat)
+			assert.EqualValues(t, 1e+06, stat)
 		} else if strings.HasSuffix(v, "M") {
-			assert.EqualValues(t, 1.048576e+09, stat)
+			assert.EqualValues(t, 1e+09, stat)
 		} else if strings.HasSuffix(v, "G") {
-			assert.EqualValues(t, 1.073741824e+12, stat)
+			assert.EqualValues(t, 1e+12, stat)
 		} else if strings.HasSuffix(v, "T") {
-			assert.EqualValues(t, 1.099511627776e+15, stat)
+			assert.EqualValues(t, 1e+15, stat)
 		} else if strings.HasSuffix(v, "B") {
 			assert.EqualValues(t, 0.0, stat)
 		} else {
@@ -93,7 +93,7 @@ func TestConvertUnit(t *testing.T) {
 	}
 }
 
-func TestCulculateAgerage(t *testing.T) {
+func TestCulculateAverage(t *testing.T) {
 	stub := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}
 	stub0 := []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
 	stat := culculateAverage(stub)

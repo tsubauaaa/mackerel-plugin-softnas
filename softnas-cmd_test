@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# the last argument
 BASE_URL=${!#}
 
 if [ "$1" = "login" ]; then
